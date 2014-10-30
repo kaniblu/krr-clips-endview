@@ -176,4 +176,4 @@
 					(return FALSE)))
 			(return TRUE))
 		(and (verify-1d TRUE) (verify-1d FALSE)))
-	(and (verify-contraint1 ()) (verify-constraint2 ())))	
+	(and (verify-contraint1 ()) (verify-constraint2 ())))
