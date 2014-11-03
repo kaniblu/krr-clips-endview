@@ -103,7 +103,6 @@
 (deffunction matrix (?x ?y ?array2d)
 	(bind ?new-matrix (make-instance of Matrix))
 	(send ?new-matrix init-matrix ?x ?y nil)
-	(send ?new-matrix print)
 	(loop-for-count (?i 1 ?y) do
 		(loop-for-count (?j 1 ?x) do
 			(send ?new-matrix update-at ?j ?i (send (send ?array2d element-at ?i) element-at ?j))))
@@ -161,7 +160,7 @@
 	(bind ?self:bottom (make-instance of Array))
 	(bind ?self:left (make-instance of Array))
 	(bind ?self:right (make-instance of Array))
-	(bind ?self:board (send ?matrix submatrix 1 (+ 1 ?self:size-x) 1 (+ 1 ?self:size-y)))
+	(bind ?self:board (send ?matrix submatrix 2 (+ 1 ?self:size-x) 2 (+ 1 ?self:size-y)))
 	(bind ?self:alphabets ?alphabets)
 	(loop-for-count (?i 2 (+ ?self:size-y 1)) do
 		(send ?self:left push-back (send ?matrix element-at 1 ?i)))
@@ -273,9 +272,3 @@
 	(return (and (send ?self verify-constraint1) (send ?self verify-constraint2))))
 
 (bind ?ex (matrix 5 5 (array (array _ a _ _ _) (array _ a b c c) (array _ b c a _) (array _ c a b _) (array _ c _ b _))))
-(bind ?ex (matrix 3 3 (array (array _ a _ _ _) (array _ a b c c) (array _ b c a _) (array _ c a b _) (array _ c _ b _))))
-(bind ?ex (matrix 6 6 (array (array _ a _ _ _ a) (array _ a b c c a) (array _ b c a _ b) (array _ c a b _ a) (array _ c _ b _ b) (array t e f n e))))
-
-	(loop-for-count (?i 1 6) do
-		(loop-for-count (?j 1 6) do
-			(send ?new-matrix update-at ?j ?i (send (send ?array2d element-at ?i) element-at ?j))))
