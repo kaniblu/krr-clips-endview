@@ -1,4 +1,4 @@
-(defclass Array "a representation of a row in a board"
+(defclass Array "a generic array like in java"
 	(is-a USER)
 	(role concrete)
 	(multislot array (default (create$)))
@@ -8,7 +8,9 @@
 	(message-handler get-size)
 	(message-handler push-back)
 	(message-handler contains)
-	(message-handler subarray))
+	(message-handler subarray)
+	(message-handler push-back-if-not-exists)
+	(message-handler remove))
 
 (defmessage-handler Array init-array (?size ?value)
 	(bind $?tmp (create$))
@@ -37,7 +39,22 @@
 		(send ?new-array push-back (send ?self element-at ?i)))
 	(return ?new-array))
 
-(defclass Matrix "two-dimensional array"
+(defmessage-handler Array push-back-if-not-exists (?x)
+	(if (not (send ?self contains ?x)) then
+		(send ?self push-back ?x)
+		(return TRUE)
+	else
+		(return FALSE)))
+
+(defmessage-handler Array remove (?x)
+	(bind ?index (member$ ?x ?self:array))
+	(if (not ?index) then
+		(return FALSE)
+	else
+		(delete$ ?self:array ?index ?index)
+		(return TRUE)))
+
+(defclass Matrix "a generic two-dimensional array"
 	(is-a USER)
 	(role concrete)
 	(slot matrix)
@@ -125,6 +142,7 @@
 	(slot left)
 	(slot right)
 	(slot bottom)
+	(slot empty)
 	(message-handler init-board)
 	(message-handler element-at)
 	(message-handler update-at)
@@ -133,7 +151,7 @@
 	(message-handler solve)
 	(message-handler verify-solution))
 
-(defmessage-handler EndView load-problem (?x ?y ?alphabets ?top ?left ?right ?bottom) 
+(defmessage-handler EndView load-problem (?x ?y ?alphabets ?top ?left ?right ?bottom ?empty) 
 	(if (or (neq (send ?top get-size) ?x) (neq (send ?bottom get-size) ?x) (neq (send ?left get-size) ?y) (neq (send ?right get-size) ?y)) then
 		(printout t "ERR: sanity check failed in init-problem" crlf)
 		(return))
@@ -141,7 +159,7 @@
 	(loop-for-count ?y do
 		(bind ?row (make-instance of Array))
 		(loop-for-count ?x do
-			(send ?row push-back _))
+			(send ?row push-back ?self:empty))
 		(send [board] push-back ?row))
 	(bind ?self:board [board])
 	(bind ?self:size-x ?x)
@@ -150,12 +168,14 @@
 	(bind ?self:bottom ?bottom)
 	(bind ?self:left ?left)
 	(bind ?self:right ?right)
+	(bind ?self:empty ?empty)
 	(return ?self))
 
-(defmessage-handler EndView load-problem (?matrix ?alphabets)
+(defmessage-handler EndView load-problem (?matrix ?alphabets ?empty)
 	(bind ?matrix-size (send ?matrix get-size))
 	(bind ?self:size-x (- (nth$ 1 ?matrix-size) 2))
 	(bind ?self:size-y (- (nth$ 2 ?matrix-size) 2))
+	(bind ?self:empty ?empty)
 	(bind ?self:top (make-instance of Array))
 	(bind ?self:bottom (make-instance of Array))
 	(bind ?self:left (make-instance of Array))
@@ -213,7 +233,7 @@
 	(bind ?i ?start)
 	(while (if (< ?change 0) then (>= ?i ?end) else (<= ?i ?end)) do
 		(bind ?element (if ?is-x-changing then (send ?self element-at ?i ?constant) else (send ?self element-at ?constant ?i)))
-		(if (eq ?element _) then
+		(if (eq ?element ?self:empty) then
 			(bind ?i (+ ?i ?change))
 		else
 			(if (eq ?element ?target) then
@@ -225,7 +245,7 @@
 (defmessage-handler EndView verify-given-array (?given-array ?is-x-changing ?is-reverse)
 	(loop-for-count (?i 1 (send ?given-array get-size)) do
 		(bind ?given (send ?given-array element-at ?i))
-		(if (neq ?given _) then
+		(if (neq ?given ?self:empty) then
 			(bind ?start (if ?is-x-changing then (if ?is-reverse then ?self:size-x else 1) else (if ?is-reverse then ?self:size-y else 1)))
 			(bind ?change (if ?is-reverse then -1 else 1))
 			(bind ?end (if ?is-reverse then 1 else (if ?is-x-changing then ?self:size-x else ?self:size-y)))
@@ -271,4 +291,37 @@
 (defmessage-handler EndView verify-solution ()
 	(return (and (send ?self verify-constraint1) (send ?self verify-constraint2))))
 
-(bind ?ex (matrix 5 5 (array (array _ a _ _ _) (array _ a b c c) (array _ b c a _) (array _ c a b _) (array _ c _ b _))))
+(defmessage-handler EndView init-candidates ()
+	(bind ?candidates (make-instance of Matrix))
+	(send ?candidates init-matrix size-x size-y Nil)
+	(loop-for-count (?i 1 ?self:size-x) do
+		(loop-for-count (?j 1 ?self:size-y) do
+			(send ?candidates update-at ?i ?j (make-instance of Array))))
+	(loop-for-count (?i 1 ?self:size-x) do
+		(loop-for-count (?j 1 ?self:size-y) do
+			(loop-for-count (?k 1 (send ?self:alphabets get-size)) do
+				(send (send ?candidates element-at ?i ?j) push-back (send ?self:alphabets element-at ?k)))))
+	(loop-for-count (?i 1 ?self:size-x) do
+		(bind ?c (send ?self:top element-at ?i))
+		(if (neq ?c ?self:empty) then
+			(loop-for-count (?j (+ (- ?self:size-y (send ?self:alphabets get-size)) 1) ?self:size-y) do
+				(send (send ?candidates element-at ?i ?j) remove ?c))))
+	(loop-for-count (?i 1 ?self:size-x) do
+		(bind ?c (send ?self:bottom element-at ?i))
+		(if (neq ?c ?self:empty) then
+			(loop-for-count (?j 1 (- ?self:size-y (send ?self:alphabets get-size))) do
+				(send (send ?candidates element-at ?i ?j) remove ?c))))
+	(loop-for-count (?i 1 ?self:size-y) do
+		(bind ?c (send ?self:left element-at ?i))
+		(if (neq ?c ?self:empty) then
+			(loop-for-count (?j (+ (- ?self:size-x (send ?self:alphabets get-size)) 1) ?self:size-x) do
+				(send (send ?candidates element-at ?i ?j) remove ?c))))
+	(loop-for-count (?i 1 ?self:size-y) do
+		(bind ?c (send ?self:right element-at ?i))
+		(if (neq ?c ?self:empty) then
+			(loop-for-count (?j 1 (- ?self:size-x (send ?self:alphabets get-size))) do
+				(send (send ?candidates element-at ?i ?j) remove ?c))))
+	(return ?candidates))
+
+(defmessage-handler EndView solve ()
+	(bind ?candidates (send ?self init-candidates)))
